@@ -40,7 +40,11 @@ class MySQL implements IDatabase,IStorage
         if (!isset($params['db']))
             throw new \Exception(__METHOD__.'. Connection params not found.');
 
-        $this->_connectionParams = $params['db'];
+        foreach ($this->_connectionParams as $key => $val)
+        {
+            if (isset($params['db'][$key]))
+                $this->_connectionParams[$key] = $params['db'][$key];
+        }
 
         foreach ($params as $key=>$val)
         {
@@ -67,7 +71,7 @@ class MySQL implements IDatabase,IStorage
         if ($this->tableName === null)
             throw new \Exception(__METHOD__.'. Table name param no set');
 
-        foreach ($this->_params as $key=>$val)
+        foreach ($this->_connectionParams as $key=>$val)
         {
             if ($val === null)
                 throw new \Exception(__METHOD__.'. Connection param "'.$key.'" no set.');

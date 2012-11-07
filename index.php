@@ -10,8 +10,7 @@ $storage = Storage\StorageFactory::build(array(
         'dbname'=>'test',
         'user'=>'test',
         'password'=>'53w5eg',
-        'tableName'=>'server',
     ),
+    'tableName'=>'server',
 ));
-//$storage->fetch();
 var_dump($storage);
