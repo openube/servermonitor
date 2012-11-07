@@ -13,5 +13,5 @@ interface IDatabase {
     /**
      * Connects to supported database server
      */
-    private function connect();
+    function connect();
 }

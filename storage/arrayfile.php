@@ -31,11 +31,11 @@ class ArrayFile implements IStorage
         if (empty($params['createFile']))
         {
             if (!file_exists($this->_storageFile))
-                throw new \Exception(__NAMESPACE__. '\\'.__CLASS__.'::'.__METHOD__.' Servers storage file does not exist.');
+                throw new \Exception(__METHOD__.' Servers storage file does not exist.');
 
             $fh = fopen($this->_storageFile, 'r');
             if (!$fh)
-                throw new \Exception(__NAMESPACE__. '\\'.__CLASS__.'::'.__METHOD__.' Servers storage file cannot be read.');
+                throw new \Exception(__METHOD__.' Servers storage file cannot be read.');
             fclose($fh);
 
             // everything seems ok, loading entries
@@ -51,7 +51,7 @@ class ArrayFile implements IStorage
         if (isset($this->_entries[$this->_getter]) && array_key_exists($property,$this->_entries[$this->_getter]))
             return $this->_entries[$this->_getter][$property];
         else
-            throw new \Exception(__NAMESPACE__.'\\'.__CLASS__.'::'.__METHOD__.' Storage entry has no "'.$property.'" property defined');
+            throw new \Exception(__METHOD__.' Storage entry has no "'.$property.'" property defined');
     }
 
     /**

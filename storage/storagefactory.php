@@ -29,7 +29,7 @@ class StorageFactory
     {
         // we need to know storage type
         if (!isset($params['type']))
-            throw new Exception(__NAMESPACE__.'\\'.__CLASS__.'::'.__METHOD__.'. Storage Stype no set');
+            throw new Exception(__METHOD__.'. Storage Stype no set');
 
         // we suppose that storage provider class lays in the same namespace
         $class = __NAMESPACE__. '\\' .$params['type'];
@@ -38,7 +38,7 @@ class StorageFactory
         if (in_array(__NAMESPACE__.'\\IStorage', class_implements($class)))
             return new $class($params);
         else
-            throw new Exception(__NAMESPACE__.'\\'.__CLASS__.'::'.__METHOD__ . '. Storage Provider must impement IStorage interface');
+            throw new Exception(__METHOD__ . '. Storage Provider must impement IStorage interface');
     }
 
 }
