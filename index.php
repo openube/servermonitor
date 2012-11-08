@@ -12,5 +12,7 @@ $storage = Storage\StorageFactory::build(array(
         'password'=>'53w5eg',
     ),
     'tableName'=>'server',
+    'where'=>array('host'=>'8.8.8.8'),
 ));
 var_dump($storage);
+//$storage->fetch();
