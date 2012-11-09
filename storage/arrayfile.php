@@ -23,10 +23,14 @@ class ArrayFile implements IStorage
     /**
      * Buils storage instance
      */
-    public function __construct($params)
+    public function __construct(array $params)
     {
         $this->_storageFile = $params['file'];
+        $this->loadStorage($params);
+    }
 
+    private function loadStorage(array $params)
+    {
         // we don't need to create servers array file
         if (empty($params['createFile']))
         {
@@ -38,15 +42,20 @@ class ArrayFile implements IStorage
                 throw new \Exception(__METHOD__.' Servers storage file cannot be read.');
             fclose($fh);
 
-            // everything seems ok, loading entries
-            $this->_entries = require $this->_storageFile;
+            foreach (require $this->_storageFile as $entry)
+            {
+                $obj = new \stdClass;
+                foreach ($entry as $param=>$val)
+                    $obj->$param = $val;
+                $this->_entries[]=$obj;
+            }
         }
     }
 
     /**
      * Tries to return a value of corresponding key in entry's array
      */
-    private function getProperty($property)
+    private function getProperty(string $property)
     {
         if (isset($this->_entries[$this->_getter]) && array_key_exists($property,$this->_entries[$this->_getter]))
             return $this->_entries[$this->_getter][$property];
@@ -90,7 +99,7 @@ class ArrayFile implements IStorage
      * Puts entry into the storage at specified place.
      * Puts data at the end of the storage if no key value was passed.
      */
-    public function put($entry, $key = null)
+    public function put(\stdClass $entry, $key = null)
     {
         if ($key !== null)
             $this->_entries[$key] = $entry;
@@ -103,7 +112,12 @@ class ArrayFile implements IStorage
      */
     public function save()
     {
-        file_put_contents($this->_storageFile,'<?php'.PHP_EOL.'return '.var_export($this->_entries,true).';');
+        $store = array();
+        for ($i = 0; $i < count($this->_entries); $i++)
+            foreach($this->fetch($i) as $param=>$val)
+                $store[$i][$param] = $val;
+
+        file_put_contents($this->_storageFile,'<?php'.PHP_EOL.'return '.var_export($store,true).';');
     }
 
 }

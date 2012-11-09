@@ -4,7 +4,8 @@ spl_autoload_extensions('.php');
 spl_autoload_register();
 
 $storage = Storage\StorageFactory::build(array(
-    'type'=>'MySQL',
+    'type'=>'ArrayFile',
+    /*
     'db'=>array(
         'host'=>'localhost',
         'dbname'=>'test',
@@ -13,6 +14,12 @@ $storage = Storage\StorageFactory::build(array(
     ),
     'tableName'=>'server',
     'where'=>array('host'=>'8.8.8.8'),
+     */
+    'file'=>'data/test.php',
+    'createFile'=>true,
 ));
-var_dump($storage);
-//$storage->fetch();
+$obj = new \stdClass;
+$obj->host = '91.193.35.251';
+$obj->port = '27016';
+$storage->put($obj);
+$storage->save();

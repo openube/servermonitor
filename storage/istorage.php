@@ -30,7 +30,7 @@ interface IStorage
      * Method to put entry to the storage. Puts to the end of storage if no key 
      * value was passed
      */
-    function put($entry, $key);
+    function put(\stdClass $entry, $key);
 
     /**
      * Method to save storage's state
