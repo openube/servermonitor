@@ -36,14 +36,24 @@ class MySQL implements IDatabase,IStorage
     private $_pointer = 0;
 
     /**
+     * @property object current fetched entry
+     */
+    private $_currentEntry = null;
+
+    /**
      * @property array database table data
      */
     private $_tableMetadata = array();
 
     /**
+     * @property array table required fields
+     */
+    private $_requiredFields = array();
+
+    /**
      * @property object query result
      */
-    private $_result = false;
+    private $_result = null;
 
     public function __construct($params)
     {
@@ -148,6 +158,10 @@ class MySQL implements IDatabase,IStorage
         $func = $this->_fetchFunc;
         while (($row = $schema->$func()) != null)
         {
+            // save field name if it cannot be null
+            if ($row->Null === 'NO')
+                $this->_requiredFields[] = $row->Field;
+
             $this->_tableMetadata[] = $row;
         }
     }
@@ -291,7 +305,6 @@ class MySQL implements IDatabase,IStorage
             }
         }
 
-
         $this->_result->execute();
 
         // get query result object fech function
@@ -335,6 +348,10 @@ class MySQL implements IDatabase,IStorage
             // storing entry
             $this->_entries[] = $obj;
         }
+
+        // free result property
+        $this->_result = null;
+        
         // delete supplementary objects
         unset($row,$obj,$properties);
     }
@@ -350,7 +367,8 @@ class MySQL implements IDatabase,IStorage
             $key = $this->_pointer;
             $this->_pointer++;
         }
-        return (isset($this->_entries[$key])) ? $this->_entries[$key] : null;
+        $this->_currentEntry = (isset($this->_entries[$key])) ? $this->_entries[$key] : null;
+        return $this->_currentEntry;
     }
 
     /**
@@ -367,7 +385,7 @@ class MySQL implements IDatabase,IStorage
         else
             throw new \Exception(__METHOD__.'. Unknown storage entry property "'.$property.'".');
 
-        return ($this->_entries[$this->_pointer]  !== null) ? $this->_entries[$this->_pointer]->$property : null;
+        return ($this->_currentEntry  !== null) ? $this->_currentEntry->$prop : null;
     }
 
     /**
@@ -388,13 +406,47 @@ class MySQL implements IDatabase,IStorage
         return $this->getProperty('port');
     }
 
-
-    public function put(\stdClass $entry, $key)
+    /**
+     * Stores entry
+     * @param object entry object instance
+     * @param mixed key entry to assign to
+     */
+    public function put(\stdClass $entry, $key = null)
     {
+        // set new flag to entry
+        $entry->isNew = true;
 
+        // implement entry atributes check
+        //foreach ($entry as $property=>$val)
+        //{
+        //    if ($this->tableMap !== null)
+        //}
+
+        // replace existing entry if key was passed
+        if ($key !== null)
+        {
+            // get property name which stores hostname of an entry
+            $hostProperty = ($this->tableMap) ? $this->tableMap['host'] : 'host';
+
+            // assign overwritten entry hostname to a new entry's property
+            $entry->overwrittenEntry = $this->_entries[$key]->$hostProperty;
+            $this->_entries[$key] = $entry;
+        }
+
+        // or append to the end of storage
+        else
+            $this->_entries[] = $entry;
     }
 
+    /**
+     * Saves storage entries to table
+     */
     public function save()
     {
+        $props = $this->select;
+        foreach ($this->_entries as $entry)
+        {
+            var_dump($entry);
+        }
     }
 }
