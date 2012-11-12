@@ -11,10 +11,16 @@ $storage = Storage\StorageFactory::build(array(
         'user'=>'test',
         'password'=>'53w5eg',
     ),
-    'tableName'=>'server',
+    'tableName'=>'servers',
     'tableMap'=>array(
-        'host'=>'hostname',
-        'port'=>'portnum',
+        'host'=>'server_name',
+        'port'=>'port_number',
     ),
 ));
+$obj = new stdClass;
+$obj->host = '10.251.251.1';
+$obj->port = '27014';
+$obj->create_time = date('Y-m-d H:i:s');
+$storage->put($obj);
+//$storage->save();
 var_dump($storage);

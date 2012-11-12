@@ -94,6 +94,7 @@ class MySQL implements IDatabase,IStorage
             $this->_fetchFunc = 'fetchObject';
         else
             $this->_fetchFunc = 'fetch_object';
+
     }
 
     /**
@@ -262,6 +263,35 @@ class MySQL implements IDatabase,IStorage
     }
 
     /**
+     * Bind params to prepared query
+     * @params array fields=>value array to bind
+     */
+    private function bindParams($params)
+    {
+        foreach($params as $field=>$condition)
+        {
+            // if we can use PDO, we bind to named parameters
+            if ($this->usePDO)
+            {
+                switch (gettype($condition))
+                {
+                case 'integer':
+                    $type = \PDO::PARAM_INT;
+                    break;
+                default:
+                    $type = \PDO::PARAM_STR;
+                    break;
+                }
+                $this->_result->bindParam(':'.$field,$condition,$type);
+            }
+
+            // otherwise we bind to placeholders
+            else
+                $this->_result->bind_param(substr(gettype($condition),0,1), $condition);
+        }
+    }
+
+    /**
      * Lets load all entries
      */
     private function loadStorage()
@@ -281,29 +311,7 @@ class MySQL implements IDatabase,IStorage
         // our WHERE clause is an array, so we need to bind fields conditions to 
         // query parameters or placeholders
         if (is_array($this->where))
-        {
-            foreach($this->where as $field=>$condition)
-            {
-                // if we can use PDO, we bind to named parameters
-                if ($this->usePDO)
-                {
-                    switch (gettype($condition))
-                    {
-                    case 'integer':
-                        $type = \PDO::PARAM_INT;
-                        break;
-                    default:
-                        $type = \PDO::PARAM_STR;
-                        break;
-                    }
-                    $this->_result->bindParam(':'.$field,$condition,$type);
-                }
-
-                // otherwise we bind to placeholders
-                else
-                    $this->_result->bind_param(substr(gettype($condition),0,1), $condition);
-            }
-        }
+            $this->bindParams($this->where);
 
         $this->_result->execute();
 
@@ -413,14 +421,37 @@ class MySQL implements IDatabase,IStorage
      */
     public function put(\stdClass $entry, $key = null)
     {
-        // set new flag to entry
-        $entry->isNew = true;
+        // entry atributes check
+        foreach ($entry as $property=>$val)
+        {
+            // if table mapping array exists
+            if ($this->tableMap !== null) {
+                
+                // remap property value to table's field if property mapping was 
+                // set
+                if (isset($this->tableMap[$property]) && (($field = $this->tableMap[$property]) !== null))
+                {
+                    // remove alias property
+                    unset($entry->$property);
 
-        // implement entry atributes check
-        //foreach ($entry as $property=>$val)
-        //{
-        //    if ($this->tableMap !== null)
-        //}
+                    // set alias property value to the right one
+                    $property = $field;
+                    $entry->$property = $val;
+                }
+            }
+
+            // check is property known to us
+            if (!in_array($property, $this->getTableFields()))
+                throw new \Exception(__METHOD__.'. Uknown object field "'.$property.'".');
+        }
+
+    // check required entry properties
+        foreach ($this->_requiredFields as $field)
+            if (empty($entry->$field))
+                throw new \Exception(__METHOD__.'. Object field "'.$field.'" is required');
+
+        // set new flag to entry
+        $entry->_new = true;
 
         // replace existing entry if key was passed
         if ($key !== null)
@@ -429,13 +460,32 @@ class MySQL implements IDatabase,IStorage
             $hostProperty = ($this->tableMap) ? $this->tableMap['host'] : 'host';
 
             // assign overwritten entry hostname to a new entry's property
-            $entry->overwrittenEntry = $this->_entries[$key]->$hostProperty;
+            $entry->_overwritten = $this->_entries[$key]->$hostProperty;
             $this->_entries[$key] = $entry;
         }
 
         // or append to the end of storage
         else
             $this->_entries[] = $entry;
+    }
+
+    private function insertQuery(\stdClass $obj)
+    {
+        unset($obj->_new);
+        $fields= array_keys(get_object_vars($obj));
+        $values = ($this->usePDO)
+            ? ':' . implode(', :', $fields)
+            : implode(', ', array_fill(0, count($fields), '?'));
+        return 'INSERT INTO `' . $this->tableName .'` (`' . implode('`, `',$fields ) . '`) VALUES(' . $values . ');';
+    }
+
+    private function updateQuery(\stdClass $obj)
+    {
+        $overriteHostname = $obj->_overwritten;
+        unset($obj->_overwritten);
+        $q = 'UPDATE `' . $this->tableName .'` SET ';
+        foreach (get_object_vars($obj) as $field=>$val)
+            $q .= '`'.$field.'`='.(($this->usePDO) ? ':'.$field : '?');
     }
 
     /**
@@ -446,7 +496,13 @@ class MySQL implements IDatabase,IStorage
         $props = $this->select;
         foreach ($this->_entries as $entry)
         {
-            var_dump($entry);
+            if (!empty($entry->_new))
+            {
+                if (isset($entry->_overwritten))
+                    $this->_result = $this->_connection->prepare($this->updateQuery($entry));
+                else
+                    $this->_result = $this->_connection->prepare($this->insertQuery($entry));
+            }
         }
     }
 }
