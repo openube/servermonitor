@@ -12,7 +12,19 @@ namespace Server;
 interface IServer
 {
     /**
+     * Server instance constructor
+     * @param object servers list storage instance 
+     */
+    function __construct(Storage\IStorage $storage);
+
+    /**
+     * Runs monitor
+     */
+    function run();
+
+    /**
      * Polls host to get it's info
      */
     function poll($host, $port);
+
 }
