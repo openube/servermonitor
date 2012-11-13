@@ -268,7 +268,9 @@ class MySQL implements IDatabase,IStorage
      */
     private function bindParams($params)
     {
+        // array to store parameters for mysqli_stmt::bind_param
         $mysqliBindParams = array(0=>'');
+
         foreach(array_keys($params) as $field)
         {
             // if we can use PDO, we bind to named parameters
@@ -288,6 +290,7 @@ class MySQL implements IDatabase,IStorage
             }
 
             // otherwise we bind to placeholders
+            // and we need to fill params array
             else
             {
                 $mysqliBindParams[0] .= substr(gettype($params[$field]),0,1);
@@ -295,7 +298,9 @@ class MySQL implements IDatabase,IStorage
             }
         }
 
+        // if we use ordinary mysqli_smtm
         if (!$this->usePDO)
+            // bind our query params
             call_user_func_array(array($this->_result, 'bind_param'), $mysqliBindParams);
     }
 
@@ -490,13 +495,20 @@ class MySQL implements IDatabase,IStorage
     private function updateQuery(\stdClass &$obj)
     {
         unset($obj->_new);
+
+        // save and remove overwritten hostname property value so it will not be 
+        // added to update query 
         $overwriteHostname = $obj->_overwritten;
         unset($obj->_overwritten);
+
+        // building query
         $q = 'UPDATE `' . $this->tableName .'` SET ';
         foreach (get_object_vars($obj) as $field=>$val)
             $q .= '`'.$field.'`='.(($this->usePDO) ? ':'.$field : '?').', ';
+
         $q = rtrim($q, " ,");
 
+        // set back overwritten hostname to bind it as param
         $obj->_overwritten = $overwriteHostname;
         return $q .= ' WHERE `'.$this->tableMap['host'].'`='.(($this->usePDO) ? ':_overwritten' : '?');
     }
@@ -506,17 +518,26 @@ class MySQL implements IDatabase,IStorage
      */
     public function save()
     {
+        // running through our entries
         foreach ($this->_entries as $entry)
         {
+            // save only new entries
             if (!empty($entry->_new))
             {
+                // if entry overwrote another one
                 if (isset($entry->_overwritten))
+                    
+                    // we need an update
                     $this->_result = $this->_connection->prepare($this->updateQuery($entry));
                 else
+
+                    // otherwise it's simple insert
                     $this->_result = $this->_connection->prepare($this->insertQuery($entry));
 
+                // binding query params
                 $this->bindParams(get_object_vars($entry));
 
+                // show error info if query failed
                 if (!$this->_result->execute())
                 {
                     if ($this->usePDO)
