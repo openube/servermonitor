@@ -18,9 +18,9 @@ $storage = Storage\StorageFactory::build(array(
     ),
 ));
 $obj = new stdClass;
-$obj->host = '10.251.251.1';
+$obj->host = '10.251.251.35';
 $obj->port = '27014';
 $obj->create_time = date('Y-m-d H:i:s');
 $storage->put($obj);
-//$storage->save();
+$storage->save();
 var_dump($storage);

@@ -202,7 +202,7 @@ class MySQL implements IDatabase,IStorage
                 {
                     // use named params if we have PDO, otherwise use 
                     // placeholders
-                    $where .= $field.'='.(($this->usePDO) ? ':'.$field : '?');
+                    $where .= '`'.$field.'`='.(($this->usePDO) ? ':'.$field : '?');
                     $i++;
 
                     // add sql AND if it's not the last condition
@@ -255,8 +255,8 @@ class MySQL implements IDatabase,IStorage
      */
     private function selectQuery()
     {
-        return 'SELECT `t`.`'.implode('`, `t`.`', $this->select).
-            '` FROM `'.$this->tableName.'` `t` '.
+        return 'SELECT `'.implode('`, `', $this->select).
+            '` FROM `'.$this->tableName.'` '.
             $this->whereClause().
             $this->order().
             $this->limit();
@@ -268,12 +268,13 @@ class MySQL implements IDatabase,IStorage
      */
     private function bindParams($params)
     {
-        foreach($params as $field=>$condition)
+        $mysqliBindParams = array(0=>'');
+        foreach(array_keys($params) as $field)
         {
             // if we can use PDO, we bind to named parameters
             if ($this->usePDO)
             {
-                switch (gettype($condition))
+                switch (gettype($params[$field]))
                 {
                 case 'integer':
                     $type = \PDO::PARAM_INT;
@@ -282,13 +283,20 @@ class MySQL implements IDatabase,IStorage
                     $type = \PDO::PARAM_STR;
                     break;
                 }
-                $this->_result->bindParam(':'.$field,$condition,$type);
+                //$this->_result->bindValue(':'.$field,$condition,$type);
+                $this->_result->bindParam(':'.$field,$params[$field],$type);
             }
 
             // otherwise we bind to placeholders
             else
-                $this->_result->bind_param(substr(gettype($condition),0,1), $condition);
+            {
+                $mysqliBindParams[0] .= substr(gettype($params[$field]),0,1);
+                $mysqliBindParams[] = &$params[$field];
+            }
         }
+
+        if (!$this->usePDO)
+            call_user_func_array(array($this->_result, 'bind_param'), $mysqliBindParams);
     }
 
     /**
@@ -442,10 +450,10 @@ class MySQL implements IDatabase,IStorage
 
             // check is property known to us
             if (!in_array($property, $this->getTableFields()))
-                throw new \Exception(__METHOD__.'. Uknown object field "'.$property.'".');
+                throw new \Exception(__METHOD__.'. Unknown object field "'.$property.'".');
         }
 
-    // check required entry properties
+        // check required entry properties
         foreach ($this->_requiredFields as $field)
             if (empty($entry->$field))
                 throw new \Exception(__METHOD__.'. Object field "'.$field.'" is required');
@@ -454,7 +462,7 @@ class MySQL implements IDatabase,IStorage
         $entry->_new = true;
 
         // replace existing entry if key was passed
-        if ($key !== null)
+        if (($key !== null) && isset($this->_entries[$key]))
         {
             // get property name which stores hostname of an entry
             $hostProperty = ($this->tableMap) ? $this->tableMap['host'] : 'host';
@@ -469,23 +477,28 @@ class MySQL implements IDatabase,IStorage
             $this->_entries[] = $entry;
     }
 
-    private function insertQuery(\stdClass $obj)
+    private function insertQuery(\stdClass &$obj)
     {
         unset($obj->_new);
         $fields= array_keys(get_object_vars($obj));
         $values = ($this->usePDO)
             ? ':' . implode(', :', $fields)
             : implode(', ', array_fill(0, count($fields), '?'));
-        return 'INSERT INTO `' . $this->tableName .'` (`' . implode('`, `',$fields ) . '`) VALUES(' . $values . ');';
+        return 'INSERT INTO `' . $this->tableName .'`(`' . implode('`, `',$fields ) . '`) VALUES(' . $values . ');';
     }
 
-    private function updateQuery(\stdClass $obj)
+    private function updateQuery(\stdClass &$obj)
     {
-        $overriteHostname = $obj->_overwritten;
+        unset($obj->_new);
+        $overwriteHostname = $obj->_overwritten;
         unset($obj->_overwritten);
         $q = 'UPDATE `' . $this->tableName .'` SET ';
         foreach (get_object_vars($obj) as $field=>$val)
-            $q .= '`'.$field.'`='.(($this->usePDO) ? ':'.$field : '?');
+            $q .= '`'.$field.'`='.(($this->usePDO) ? ':'.$field : '?').', ';
+        $q = rtrim($q, " ,");
+
+        $obj->_overwritten = $overwriteHostname;
+        return $q .= ' WHERE `'.$this->tableMap['host'].'`='.(($this->usePDO) ? ':_overwritten' : '?');
     }
 
     /**
@@ -493,7 +506,6 @@ class MySQL implements IDatabase,IStorage
      */
     public function save()
     {
-        $props = $this->select;
         foreach ($this->_entries as $entry)
         {
             if (!empty($entry->_new))
@@ -502,6 +514,16 @@ class MySQL implements IDatabase,IStorage
                     $this->_result = $this->_connection->prepare($this->updateQuery($entry));
                 else
                     $this->_result = $this->_connection->prepare($this->insertQuery($entry));
+
+                $this->bindParams(get_object_vars($entry));
+
+                if (!$this->_result->execute())
+                {
+                    if ($this->usePDO)
+                        throw new \Exception(__METHOD__.'. '.implode(', ',$this->_result->errorInfo()));
+                    else
+                        throw new \Exception(__METHOD__.'. '.$this->_result->errno.': '.$this->_result->error);
+                }
             }
         }
     }
