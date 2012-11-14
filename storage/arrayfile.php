@@ -20,6 +20,13 @@ class ArrayFile implements IStorage
      */
     private $_getter = 0;
 
+    private $_setter = 0;
+
+    /**
+     * @property object current fetched entry
+     */
+    private $_currentEntry = null;
+
     /**
      * Buils storage instance
      */
@@ -55,10 +62,10 @@ class ArrayFile implements IStorage
     /**
      * Tries to return a value of corresponding key in entry's array
      */
-    private function getProperty(string $property)
+    private function getProperty($property)
     {
-        if (isset($this->_entries[$this->_getter]) && array_key_exists($property,$this->_entries[$this->_getter]))
-            return $this->_entries[$this->_getter][$property];
+        if (isset($this->_currentEntry) && array_key_exists($property,get_object_vars($this->_currentEntry)))
+            return $this->_currentEntry->$property;
         else
             throw new \Exception(__METHOD__.' Storage entry has no "'.$property.'" property defined');
     }
@@ -92,7 +99,8 @@ class ArrayFile implements IStorage
             $key = $this->_getter;
             $this->_getter++;
         }
-        return (isset($this->_entries[$key])) ? $this->_entries[$key] : null;
+        $this->_currentEntry =  (isset($this->_entries[$key])) ? $this->_entries[$key] : null;
+        return $this->_currentEntry;
     }
 
     /**
@@ -102,7 +110,14 @@ class ArrayFile implements IStorage
     public function put(\stdClass $entry, $key = null)
     {
         if ($key !== null)
+        {
             $this->_entries[$key] = $entry;
+            if (!is_int($key))
+            {
+                $this->_entries[$this->_setter] = &$this->_entries[$key];
+                $this->_setter++;
+            }
+        }
         else
             $this->_entries[] = $entry;
     }
@@ -113,9 +128,9 @@ class ArrayFile implements IStorage
     public function save()
     {
         $store = array();
-        for ($i = 0; $i < count($this->_entries); $i++)
-            foreach($this->fetch($i) as $param=>$val)
-                $store[$i][$param] = $val;
+        while (($entry = $this->fetch()) !== null)
+            foreach(get_object_vars($entry) as $param=>$val)
+                $store[$this->_getter-1][$param] = $val;
 
         file_put_contents($this->_storageFile,'<?php'.PHP_EOL.'return '.var_export($store,true).';');
     }

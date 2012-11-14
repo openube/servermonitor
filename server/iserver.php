@@ -1,4 +1,3 @@
-
 <?php
 
 namespace Server;
@@ -15,7 +14,7 @@ interface IServer
      * Server instance constructor
      * @param object servers list storage instance 
      */
-    function __construct(Storage\IStorage $storage);
+    function __construct(array $params);
 
     /**
      * Runs monitor

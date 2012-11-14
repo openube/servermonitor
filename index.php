@@ -17,10 +17,16 @@ $storage = Storage\StorageFactory::build(array(
         'port'=>'port_number',
     ),
 ));
-$obj = new stdClass;
-$obj->host = '10.251.251.35';
-$obj->port = '27014';
-$obj->create_time = date('Y-m-d H:i:s');
-$storage->put($obj);
-$storage->save();
-var_dump($storage);
+
+$monitor = Server\ServerFactory::build(array(
+    'type'=>'CounterStrike',
+    'storage'=>$storage,
+    'useCache'=>true,
+    'cache'=>array(
+        'type'=>'ArrayFile',
+        'file'=>'cache/csPoll.php',
+        'pollResultLifetime'=>600,
+    ),
+));
+
+$monitor->run();
