@@ -180,6 +180,11 @@ class MySQL implements IDatabase,IStorage
         return $fields;
     }
 
+    public function resetCursor()
+    {
+        $this->_getter = $this->_setter = 0;
+    }
+
     /**
      * Builds where clause for SELECT's
      * @return string where clause string to append to query

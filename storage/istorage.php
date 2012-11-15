@@ -27,6 +27,11 @@ interface IStorage
     function fetch($key);
 
     /**
+     * Reset internal fetch and put cursors
+     */
+    function resetCursor();
+
+    /**
      * Method to put entry to the storage. Puts to the end of storage if no key 
      * value was passed
      */

@@ -58,14 +58,17 @@ class CounterStrike implements IServer
 
     private function isCacheAvailable()
     {
+        // do we need cache
         if ($this->useCache !== null)
         {
-            if (!file_exists($this->cache['file']))
-                $this->_params['cache']['createFile'] = true;
 
             if (!isset($this->cache['type']))
                 throw new \Exception(__METHOD__.'. Cache provider not set');
+            
+            if (($this->cache['type'] === 'ArrayFile') && !file_exists($this->cache['file']))
+                $this->_params['cache']['createFile'] = true;
 
+            // we need to know for what time to save poll result
             if (!isset($this->cache['pollResultLifetime']))
                 throw new \Exception(__METHOD__.'. Cache result lifetime not set');
 
@@ -87,17 +90,24 @@ class CounterStrike implements IServer
 
     public function run()
     {
+        // counter to fetch entries from cache
         $i = 0;
+
+        // iterate through the storage
         while($this->_storage->fetch() !== null)
         {
             $host = $this->_storage->getHost();
             $port = $this->_storage->getPort();
 
             $result = $this->_cache->fetch($i);
+
+            // if we have no cached results
+            // or server was polled more than pollResultLifetime second ago
+            // we need to poll it again
             if (
                 ($result === null) ||
                 (
-                    ($result->pollTime - time()) > $this->cache['pollResultLifetime']
+                    (time() - $result->pollTime) > $this->cache['pollResultLifetime']
                 )
             )
             {
@@ -105,11 +115,13 @@ class CounterStrike implements IServer
                 $result->pollTime = time();
             }
 
+            // put results to cache
             $this->_cache->put($result, $i);
             $i++;
-            var_dump($result);
         }
+
         $this->_cache->save();
+        $this->renderResults();
     }
 
     public function poll($host, $port)
@@ -119,6 +131,7 @@ class CounterStrike implements IServer
 
         $status = new \stdClass;
         $status->host = $host;
+        $status->port = $port;
 
         fwrite($socket, $query);
         stream_set_timeout($socket, 1);
@@ -151,6 +164,55 @@ class CounterStrike implements IServer
         }
 
         return $status;
+    }
+
+    private function renderResults()
+    {
+        $dom = new \DOMDocument('1.0','UTF-8');
+        $table = $dom->createElement('table');
+
+        $thead = $dom->createElement('thead');
+        $head_row = $dom->createElement('tr');
+        $cell = $dom->createElement('th', 'Host');
+        $head_row->appendChild($cell);
+
+        foreach (array_keys($this->_serverStatusMap) as $key)
+        {
+            $cell = $dom->createElement('th', ucfirst($key));
+            $head_row->appendChild($cell);
+        }
+
+        $thead->appendChild($head_row);
+        $table->appendChild($thead);
+
+        $tbody = $dom->createElement('tbody');
+
+        $this->_cache->resetCursor();
+        while (($result = $this->_cache->fetch()) !== null)
+        {
+            $row = $dom->createElement('tr');
+            $cell = $dom->createElement('td', $result->host . ':' . $result->port);
+            $row->appendChild($cell);
+
+            if ($result->status !== CounterStrike::SERVER_OFFLINE)
+            {
+                foreach (array_keys($this->_serverStatusMap) as $key)
+                {
+                    $cell = $dom->createElement('td', $result->$key);
+                    $row->appendChild($cell);
+                }
+            }
+            else
+            {
+                $cell = $dom->createElement('td',' OFFLINE');
+                $row->appendChild($cell);
+            }
+
+            $tbody->appendChild($row);
+        }
+        $table->appendChild($tbody);
+        $dom->appendChild($table);
+        echo $dom->saveHTML();
     }
 
 }

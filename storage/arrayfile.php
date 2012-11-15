@@ -49,7 +49,7 @@ class ArrayFile implements IStorage
                 throw new \Exception(__METHOD__.' Servers storage file cannot be read.');
             fclose($fh);
 
-            foreach (require $this->_storageFile as $entry)
+            foreach (require $this->_storageFile as $key=>$entry)
             {
                 $obj = new \stdClass;
                 foreach ($entry as $param=>$val)
@@ -86,6 +86,11 @@ class ArrayFile implements IStorage
         return $this->getProperty('port');
     }
 
+    public function resetCursor()
+    {
+        $this->_getter = $this->_setter = 0;
+    }
+
     /**
      * Returs server's entry, stored at specified key.
      * Iterates through storage if no key value was passed.
@@ -99,6 +104,7 @@ class ArrayFile implements IStorage
             $key = $this->_getter;
             $this->_getter++;
         }
+
         $this->_currentEntry =  (isset($this->_entries[$key])) ? $this->_entries[$key] : null;
         return $this->_currentEntry;
     }
