@@ -331,7 +331,11 @@ class MySQL implements IDatabase,IStorage
         if (is_array($this->where))
             $this->bindParams($this->where);
 
-        $this->_result->execute();
+        if (!$this->_result->execute())
+            if ($this->usePDO)
+                throw new \Exception(__METHOD__.'. '.implode(', ',$this->_result->errorInfo()));
+            else
+                throw new \Exception(__METHOD__.'. '.$this->_result->errno.': '.$this->_result->error);
 
         // get query result object fech function
         $fetchFunc = $this->_fetchFunc;
@@ -529,6 +533,16 @@ class MySQL implements IDatabase,IStorage
             // save only new entries
             if (!empty($entry->_new))
             {
+                $hostProperty = $this->tableMap['host'];
+
+                // check is host is valid IP or domain admins
+                if (
+                    !preg_match('/^(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9])$/', $entry->$hostProperty)
+                    &&
+                    !preg_match('/^[a-z0-9\.\-_]+\.[a-z]{2,4}/i', $entry->$hostProperty)
+                )
+                    throw new \Exception(__METHOD__.'. Hostname "'.$this->getHost().'" must be a valib IP address or domain name');
+
                 // if entry overwrote another one
                 if (isset($entry->_overwritten))
                     

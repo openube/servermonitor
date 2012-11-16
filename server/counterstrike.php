@@ -43,6 +43,11 @@ class CounterStrike implements IServer
         ),
     );
 
+    /**
+     * @property array results container
+     */
+    private $_results = array();
+
     public function __construct(array $params)
     {
         if (isset($params['type']))
@@ -117,6 +122,9 @@ class CounterStrike implements IServer
 
             // put results to cache
             $this->_cache->put($result, $i);
+
+            // and array to render results from
+            $this->_results[] = $result;
             $i++;
         }
 
@@ -170,6 +178,8 @@ class CounterStrike implements IServer
     {
         $dom = new \DOMDocument('1.0','UTF-8');
         $table = $dom->createElement('table');
+        $table->setAttribute('border', 1);
+        $table->setAttribute('cellpadding', 3);
 
         $thead = $dom->createElement('thead');
         $head_row = $dom->createElement('tr');
@@ -187,8 +197,7 @@ class CounterStrike implements IServer
 
         $tbody = $dom->createElement('tbody');
 
-        $this->_cache->resetCursor();
-        while (($result = $this->_cache->fetch()) !== null)
+        foreach ($this->_results as $result)
         {
             $row = $dom->createElement('tr');
             $cell = $dom->createElement('td', $result->host . ':' . $result->port);
@@ -205,6 +214,7 @@ class CounterStrike implements IServer
             else
             {
                 $cell = $dom->createElement('td',' OFFLINE');
+                $cell->setAttribute('colspan', 4);
                 $row->appendChild($cell);
             }
 

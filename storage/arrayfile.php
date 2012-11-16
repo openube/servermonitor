@@ -64,7 +64,7 @@ class ArrayFile implements IStorage
      */
     private function getProperty($property)
     {
-        if (isset($this->_currentEntry) && array_key_exists($property,get_object_vars($this->_currentEntry)))
+        if (array_key_exists($property,get_object_vars($this->_currentEntry)))
             return $this->_currentEntry->$property;
         else
             throw new \Exception(__METHOD__.' Storage entry has no "'.$property.'" property defined');
@@ -105,8 +105,13 @@ class ArrayFile implements IStorage
             $this->_getter++;
         }
 
-        $this->_currentEntry =  (isset($this->_entries[$key])) ? $this->_entries[$key] : null;
-        return $this->_currentEntry;
+        if (isset($this->_entries[$key]))
+        {
+            $this->_currentEntry =  $this->_entries[$key];
+            return $this->_currentEntry;
+        }
+        else
+             return null;
     }
 
     /**
@@ -134,9 +139,19 @@ class ArrayFile implements IStorage
     public function save()
     {
         $store = array();
-        while (($entry = $this->fetch()) !== null)
+        while (($entry = $this->fetch()) != null)
+        {
+            // check is host is valid IP or domain admins
+            if (
+                !preg_match('/^(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9])$/', $this->getHost())
+                &&
+                !preg_match('/^[a-z0-9\.\-_]+\.[a-z]{2,4}/i', $this->getHost())
+            )
+                throw new \Exception(__METHOD__.'. Hostname "'.$this->getHost().'" must be a valib IP address or domain name');
+
             foreach(get_object_vars($entry) as $param=>$val)
                 $store[$this->_getter-1][$param] = $val;
+        }
 
         file_put_contents($this->_storageFile,'<?php'.PHP_EOL.'return '.var_export($store,true).';');
     }
