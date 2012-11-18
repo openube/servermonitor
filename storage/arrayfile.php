@@ -42,11 +42,11 @@ class ArrayFile implements IStorage
         if (empty($params['createFile']))
         {
             if (!file_exists($this->_storageFile))
-                throw new \Exception(__METHOD__.' Servers storage file does not exist.');
+                throw new \Exception('Servers storage file does not exist.');
 
             $fh = fopen($this->_storageFile, 'r');
             if (!$fh)
-                throw new \Exception(__METHOD__.' Servers storage file cannot be read.');
+                throw new \Exception('Servers storage file cannot be read.');
             fclose($fh);
 
             foreach (require $this->_storageFile as $key=>$entry)
@@ -67,7 +67,7 @@ class ArrayFile implements IStorage
         if (array_key_exists($property,get_object_vars($this->_currentEntry)))
             return $this->_currentEntry->$property;
         else
-            throw new \Exception(__METHOD__.' Storage entry has no "'.$property.'" property defined');
+            throw new \Exception('Storage entry has no "'.$property.'" property defined');
     }
 
     /**
@@ -147,7 +147,10 @@ class ArrayFile implements IStorage
                 &&
                 !preg_match('/^[a-z0-9\.\-_]+\.[a-z]{2,4}/i', $this->getHost())
             )
-                throw new \Exception(__METHOD__.'. Hostname "'.$this->getHost().'" must be a valib IP address or domain name');
+                throw new \Exception('Hostname "'.$this->getHost().'" must be a valib IP address or domain name');
+
+            if (!is_numeric($this->getPort()))
+                throw new \Exception('Port number must be an interger');
 
             foreach(get_object_vars($entry) as $param=>$val)
                 $store[$this->_getter-1][$param] = $val;

@@ -17,7 +17,7 @@ $storage = Storage\StorageFactory::build(array(
         'port'=>'port_number',
     ),
     'order'=>'create_time DESC',
-    'limit'=>6,
+    'limit'=>10,
 ));
 
 $monitor = Server\ServerFactory::build(array(

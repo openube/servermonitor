@@ -24,6 +24,12 @@ class MySQL implements IDatabase,IStorage
      */
     private $_entries = array();
 
+
+    /**
+     * @property array hosts index to evade servers duplicates
+     */
+    private $_hostsIndex = array();
+
     /**
      * @property object database connection object
      */
@@ -70,7 +76,7 @@ class MySQL implements IDatabase,IStorage
     private function setParams($params)
     {
         if (!isset($params['db']))
-            throw new \Exception(__METHOD__.'. Connection params not found.');
+            throw new \Exception('Connection params not found.');
 
         // database params are moved to their own property
         foreach ($this->_connectionParams as $key => $val)
@@ -127,17 +133,17 @@ class MySQL implements IDatabase,IStorage
     public function connect()
     {
         if ($this->tableName === null)
-            throw new \Exception(__METHOD__.'. Table name param no set');
+            throw new \Exception('Table name param no set');
 
         foreach ($this->_connectionParams as $key=>$val)
             if ($val === null)
-                throw new \Exception(__METHOD__.'. Connection param "'.$key.'" no set.');
+                throw new \Exception('Connection param "'.$key.'" no set.');
 
         // if table mappings where passed to the storage
         if (is_array($this->tableMap))
             // we should check is there 'host' and 'port' properties mappings
             if (!array_key_exists('host',$this->tableMap) || !array_key_exists('port',$this->tableMap))
-                throw new \Exception(__METHOD__.'. No table field was mapped to "host" or "port" property');
+                throw new \Exception('No table field was mapped to "host" or "port" property');
 
         // establish connection regarding is PDO available 
         if ($this->usePDO)
@@ -146,7 +152,7 @@ class MySQL implements IDatabase,IStorage
             $this->_connection = new \MySQLi($this->host, $this->user, $this->password, $this->dbname);
 
         if (!$this->_connection)
-            throw new \Exception(__METHOD__.'. Cannot connect to database');
+            throw new \Exception('Cannot connect to database');
 
     }
 
@@ -225,7 +231,7 @@ class MySQL implements IDatabase,IStorage
             // if where param not an array neigther a string we don't know how 
             // to work with it
             else
-                throw new \Exception(__METHOD__.'. WHERE condition has uknown type');
+                throw new \Exception('WHERE condition has uknown type');
         }
         return $where;
     }
@@ -239,7 +245,7 @@ class MySQL implements IDatabase,IStorage
         if ($this->order !== null)
         {
             if (!is_string($this->order))
-                throw new \Exception(__METHOD__.'. Order param should be a string');
+                throw new \Exception('Order param should be a string');
             else
                 return ' ORDER BY '.$this->order;
         }
@@ -321,7 +327,7 @@ class MySQL implements IDatabase,IStorage
             (!in_array('host',$this->select)) &&
             (!in_array('port',$this->select))
         )
-            throw new \Exception(__METHOD__.'. Storage table has no "host" neigther "port" fields');
+            throw new \Exception('Storage table has no "host" neigther "port" fields');
 
         // prepare our query
         $this->_result = $this->_connection->prepare($this->selectQuery());
@@ -333,9 +339,9 @@ class MySQL implements IDatabase,IStorage
 
         if (!$this->_result->execute())
             if ($this->usePDO)
-                throw new \Exception(__METHOD__.'. '.implode(', ',$this->_result->errorInfo()));
+                throw new \Exception(implode(', ',$this->_result->errorInfo()));
             else
-                throw new \Exception(__METHOD__.'. '.$this->_result->errno.': '.$this->_result->error);
+                throw new \Exception($this->_result->errno.': '.$this->_result->error);
 
         // get query result object fech function
         $fetchFunc = $this->_fetchFunc;
@@ -373,7 +379,12 @@ class MySQL implements IDatabase,IStorage
                 // loading entry properties from row result
                 foreach ($row as $field=>$val)
                     $obj->$field = $val;
+
             }
+            
+            // fill hosts index
+            $hostField = $this->tableMap['host'];
+            $this->_hostsIndex[$obj->$hostField] = count($this->_entries);
 
             // storing entry
             $this->_entries[] = $obj;
@@ -413,7 +424,7 @@ class MySQL implements IDatabase,IStorage
         elseif (in_array($property, $this->getTableFields()))
             $prop = $property;
         else
-            throw new \Exception(__METHOD__.'. Unknown storage entry property "'.$property.'".');
+            throw new \Exception('Unknown storage entry property "'.$property.'".');
 
         return ($this->_currentEntry  !== null) ? $this->_currentEntry->$prop : null;
     }
@@ -464,23 +475,30 @@ class MySQL implements IDatabase,IStorage
 
             // check is property known to us
             if (!in_array($property, $this->getTableFields()))
-                throw new \Exception(__METHOD__.'. Unknown object field "'.$property.'".');
+                throw new \Exception('Unknown object field "'.$property.'".');
         }
 
         // check required entry properties
         foreach ($this->_requiredFields as $field)
             if (empty($entry->$field))
-                throw new \Exception(__METHOD__.'. Object field "'.$field.'" is required');
+                throw new \Exception('Object field "'.$field.'" is required');
 
         // set new flag to entry
         $entry->_new = true;
+        
+        // get property name which stores hostname of an entry
+        $hostProperty = ($this->tableMap) ? $this->tableMap['host'] : 'host';
+
+        // if we already have this server in our storage we need to update it's 
+        // create_date
+        if (isset($this->_hostsIndex[$entry->$hostProperty]))
+        {
+            $key = $this->_hostsIndex[$entry->$hostProperty];
+        }
 
         // replace existing entry if key was passed
         if (($key !== null) && isset($this->_entries[$key]))
         {
-            // get property name which stores hostname of an entry
-            $hostProperty = ($this->tableMap) ? $this->tableMap['host'] : 'host';
-
             // assign overwritten entry hostname to a new entry's property
             $entry->_overwritten = $this->_entries[$key]->$hostProperty;
             $this->_entries[$key] = $entry;
@@ -489,6 +507,9 @@ class MySQL implements IDatabase,IStorage
         // or append to the end of storage
         else
             $this->_entries[] = $entry;
+
+        $this->_hostsIndex[$entry->$hostProperty] = ($key !== null) ? $key : count($this->_entries)-1;
+
     }
 
     private function insertQuery(\stdClass &$obj)
@@ -534,6 +555,7 @@ class MySQL implements IDatabase,IStorage
             if (!empty($entry->_new))
             {
                 $hostProperty = $this->tableMap['host'];
+                $portProperty = $this->tableMap['port'];
 
                 // check is host is valid IP or domain admins
                 if (
@@ -541,7 +563,10 @@ class MySQL implements IDatabase,IStorage
                     &&
                     !preg_match('/^[a-z0-9\.\-_]+\.[a-z]{2,4}/i', $entry->$hostProperty)
                 )
-                    throw new \Exception(__METHOD__.'. Hostname "'.$this->getHost().'" must be a valib IP address or domain name');
+                    throw new \Exception('Hostname "'.$this->getHost().'" must be a valib IP address or domain name');
+
+                if (!is_int($entry->$portProperty))
+                    throw new \Exception('Port number must be an integer');
 
                 // if entry overwrote another one
                 if (isset($entry->_overwritten))
@@ -560,9 +585,9 @@ class MySQL implements IDatabase,IStorage
                 if (!$this->_result->execute())
                 {
                     if ($this->usePDO)
-                        throw new \Exception(__METHOD__.'. '.implode(', ',$this->_result->errorInfo()));
+                        throw new \Exception(implode(', ',$this->_result->errorInfo()));
                     else
-                        throw new \Exception(__METHOD__.'. '.$this->_result->errno.': '.$this->_result->error);
+                        throw new \Exception($this->_result->errno.': '.$this->_result->error);
                 }
             }
         }
