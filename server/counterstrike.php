@@ -96,7 +96,7 @@ class CounterStrike implements IServer
     public function run()
     {
         // iterate through the storage
-        while (($entry = $this->_storage->fetch()) !== null)
+        while ($this->_storage->fetch() !== null)
         {
             $host = $this->_storage->getHost();
             $port = $this->_storage->getPort();

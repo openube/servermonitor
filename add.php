@@ -134,7 +134,7 @@ if (isset($_POST['masterserver']))
                     $storage->save();
 ?>
     <span style="color:#169350">Спасибо, сервер добавлен</span>
-    <meta http-equiv="Refres" content="3" />
+    <meta http-equiv="Refresh" content="3" />
 <?php
                 }
                 catch (\Exception $e)

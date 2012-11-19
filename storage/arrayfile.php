@@ -25,8 +25,6 @@ class ArrayFile implements IStorage
      */
     private $_getter = 0;
 
-    private $_setter = 0;
-
     /**
      * @property object current fetched entry
      */
@@ -99,7 +97,7 @@ class ArrayFile implements IStorage
 
     public function resetCursor()
     {
-        $this->_getter = $this->_setter = 0;
+        $this->_getter = 0;
     }
 
     /**
@@ -137,8 +135,7 @@ class ArrayFile implements IStorage
         {
             if (!is_int($key))
             {
-                $key = $this->_hostsIndex[$key] = $this->_setter;
-                $this->_setter++;
+                $key = $this->_hostsIndex[$key] = count($this->_entries);
             }
             $this->_entries[$key] = $entry;
         }
