@@ -95,9 +95,6 @@ class CounterStrike implements IServer
 
     public function run()
     {
-        // counter to fetch entries from cache
-        $i = 0;
-
         // iterate through the storage
         while (($entry = $this->_storage->fetch()) !== null)
         {
@@ -123,9 +120,8 @@ class CounterStrike implements IServer
             // put results to cache
             $this->_cache->put($result, $host);
 
-            // and array to render results from
+            // add array to render results from
             $this->_results[] = $result;
-            $i++;
         }
 
         $this->_cache->save();
