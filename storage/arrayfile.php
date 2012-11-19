@@ -135,7 +135,10 @@ class ArrayFile implements IStorage
         {
             if (!is_int($key))
             {
-                $key = $this->_hostsIndex[$key] = count($this->_entries);
+                if (isset($this->_hostsIndex[$key]))
+                    $key = $this->_hostsIndex[$key];
+                else
+                    $key = $this->_hostsIndex[$key] = count($this->_entries);
             }
             $this->_entries[$key] = $entry;
         }
