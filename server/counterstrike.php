@@ -99,12 +99,12 @@ class CounterStrike implements IServer
         $i = 0;
 
         // iterate through the storage
-        while($this->_storage->fetch() !== null)
+        while (($entry = $this->_storage->fetch()) !== null)
         {
             $host = $this->_storage->getHost();
             $port = $this->_storage->getPort();
 
-            $result = $this->_cache->fetch($i);
+            $result = $this->_cache->fetch($host);
 
             // if we have no cached results
             // or server was polled more than pollResultLifetime second ago
@@ -121,7 +121,7 @@ class CounterStrike implements IServer
             }
 
             // put results to cache
-            $this->_cache->put($result, $i);
+            $this->_cache->put($result, $host);
 
             // and array to render results from
             $this->_results[] = $result;

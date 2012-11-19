@@ -408,6 +408,9 @@ class MySQL implements IDatabase,IStorage
             $key = $this->_pointer;
             $this->_pointer++;
         }
+        elseif (!is_int($key) && isset($this->_hostsIndex[$key]))
+            $key = $this->_hostsIndex[$key];
+
         $this->_currentEntry = (isset($this->_entries[$key])) ? $this->_entries[$key] : null;
         return $this->_currentEntry;
     }
@@ -495,6 +498,9 @@ class MySQL implements IDatabase,IStorage
         {
             $key = $this->_hostsIndex[$entry->$hostProperty];
         }
+
+        if (!is_int($key))
+            $key = count($this->_entries);
 
         // replace existing entry if key was passed
         if (($key !== null) && isset($this->_entries[$key]))

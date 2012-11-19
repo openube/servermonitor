@@ -10,6 +10,11 @@ class ArrayFile implements IStorage
     private $_entries = array();
 
     /**
+     * @property array hosts index stores hostname to array index mapping
+     */
+    private $_hostsIndex = array();
+
+    /**
      * @property string script filename which returns entries info
      */
     private $_storageFile;
@@ -53,7 +58,13 @@ class ArrayFile implements IStorage
             {
                 $obj = new \stdClass;
                 foreach ($entry as $param=>$val)
+                {
                     $obj->$param = $val;
+                }
+
+                if (array_key_exists('host',get_object_vars($obj)))
+                    $this->_hostsIndex[$obj->host] = count($this->_entries);
+
                 $this->_entries[]=$obj;
             }
         }
@@ -104,6 +115,8 @@ class ArrayFile implements IStorage
             $key = $this->_getter;
             $this->_getter++;
         }
+        elseif (!is_int($key) && isset($this->_hostsIndex[$key]))
+            $key = $this->_hostsIndex[$key];
 
         if (isset($this->_entries[$key]))
         {
@@ -122,12 +135,12 @@ class ArrayFile implements IStorage
     {
         if ($key !== null)
         {
-            $this->_entries[$key] = $entry;
             if (!is_int($key))
             {
-                $this->_entries[$this->_setter] = &$this->_entries[$key];
+                $key = $this->_hostsIndex[$key] = $this->_setter;
                 $this->_setter++;
             }
+            $this->_entries[$key] = $entry;
         }
         else
             $this->_entries[] = $entry;

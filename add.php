@@ -67,8 +67,8 @@ if (isset($_POST['masterserver']))
             $errors['server'] = 'unmatch';
 
         // validate port number to be a number
-        if (!is_numeric($request['port']))
-            $errors['port'] = 'integer';
+        if (!preg_match('/^\d{2,5}$/', $request['port']))
+            $errors['port'] = 'unmatch';
 
         // validate key to be 10 chars length and contain numbers and capital letters
         if (!preg_match('/^[A-Z0-9]{10}$/', $request['key']))
